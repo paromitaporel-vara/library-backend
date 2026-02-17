@@ -1,0 +1,13 @@
+services:
+  test-postgres:
+    container_name: postgres-dev
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-certimt}
+      PGDATA: /data/postgres
+    volumes:
+      - ./.data:/postgres
+    ports:
+      - "5432:5432"
