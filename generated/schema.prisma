@@ -1,6 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/client"
+  provider     = "prisma-client-js"
+  output       = "../generated"
+  moduleFormat = "cjs"
 }
 
 datasource db {
@@ -13,8 +14,14 @@ model User {
   name      String?
   email     String   @unique
   password  String
+  role      Role     @default(USER)
   createdAt DateTime @default(now())
   borrows   Borrow[]
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model Book {

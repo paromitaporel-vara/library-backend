@@ -98,6 +98,7 @@ exports.Prisma.UserScalarFieldEnum = {
   name: 'name',
   email: 'email',
   password: 'password',
+  role: 'role',
   createdAt: 'createdAt'
 };
 
@@ -131,7 +132,10 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
-
+exports.Role = exports.$Enums.Role = {
+  USER: 'USER',
+  ADMIN: 'ADMIN'
+};
 
 exports.Prisma.ModelName = {
   User: 'User',
@@ -149,10 +153,11 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/home/vara/Desktop/library app/library-management-system/prisma/generated/client",
+      "value": "/home/vara/Desktop/library app/library-management-system/generated",
       "fromEnvVar": null
     },
     "config": {
+      "moduleFormat": "cjs",
       "engineType": "library"
     },
     "binaryTargets": [
@@ -167,10 +172,10 @@ const config = {
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../../../.env"
+    "rootEnvPath": "../.env",
+    "schemaEnvPath": "../.env"
   },
-  "relativePath": "../..",
+  "relativePath": "../prisma",
   "clientVersion": "6.19.2",
   "engineVersion": "c2990dca591cba766e3b7ef5d9e8a84796e47ab7",
   "datasourceNames": [
@@ -186,13 +191,13 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"./generated/client\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  name      String?\n  email     String   @unique\n  password  String\n  createdAt DateTime @default(now())\n  borrows   Borrow[]\n}\n\nmodel Book {\n  id          String   @id @default(uuid())\n  title       String\n  author      String\n  isAvailable Boolean  @default(true)\n  borrows     Borrow[]\n}\n\nmodel Borrow {\n  id         String    @id @default(uuid())\n  userId     String\n  bookId     String\n  borrowedAt DateTime  @default(now())\n  dueDate    DateTime\n  returnedAt DateTime?\n  book       Book      @relation(fields: [bookId], references: [id])\n  user       User      @relation(fields: [userId], references: [id])\n}\n",
-  "inlineSchemaHash": "42b9f07cb5bda162255989f136b825f5a9cef1ca4ea41986de8aed5f5d6808b5",
+  "inlineSchema": "generator client {\n  provider     = \"prisma-client-js\"\n  output       = \"../generated\"\n  moduleFormat = \"cjs\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  name      String?\n  email     String   @unique\n  password  String\n  role      Role     @default(USER)\n  createdAt DateTime @default(now())\n  borrows   Borrow[]\n}\n\nenum Role {\n  USER\n  ADMIN\n}\n\nmodel Book {\n  id          String   @id @default(uuid())\n  title       String\n  author      String\n  isAvailable Boolean  @default(true)\n  borrows     Borrow[]\n}\n\nmodel Borrow {\n  id         String    @id @default(uuid())\n  userId     String\n  bookId     String\n  borrowedAt DateTime  @default(now())\n  dueDate    DateTime\n  returnedAt DateTime?\n  book       Book      @relation(fields: [bookId], references: [id])\n  user       User      @relation(fields: [userId], references: [id])\n}\n",
+  "inlineSchemaHash": "f09e4801359890b5701d273c80d02c2c12d718f73eadfc824538c8f75fe56ab1",
   "copyEngine": true
 }
 config.dirname = '/'
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"borrows\",\"kind\":\"object\",\"type\":\"Borrow\",\"relationName\":\"BorrowToUser\"}],\"dbName\":null},\"Book\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"author\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isAvailable\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"borrows\",\"kind\":\"object\",\"type\":\"Borrow\",\"relationName\":\"BookToBorrow\"}],\"dbName\":null},\"Borrow\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bookId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"borrowedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"returnedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"book\",\"kind\":\"object\",\"type\":\"Book\",\"relationName\":\"BookToBorrow\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"BorrowToUser\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"role\",\"kind\":\"enum\",\"type\":\"Role\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"borrows\",\"kind\":\"object\",\"type\":\"Borrow\",\"relationName\":\"BorrowToUser\"}],\"dbName\":null},\"Book\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"author\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"isAvailable\",\"kind\":\"scalar\",\"type\":\"Boolean\"},{\"name\":\"borrows\",\"kind\":\"object\",\"type\":\"Borrow\",\"relationName\":\"BookToBorrow\"}],\"dbName\":null},\"Borrow\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"bookId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"borrowedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"returnedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"book\",\"kind\":\"object\",\"type\":\"Book\",\"relationName\":\"BookToBorrow\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"BorrowToUser\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 defineDmmfProperty(exports.Prisma, config.runtimeDataModel)
 config.engineWasm = {
   getRuntime: async () => require('./query_engine_bg.js'),

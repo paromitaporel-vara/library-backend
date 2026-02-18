@@ -1,4 +1,4 @@
-import { IsUUID, IsDateString, IsNotEmpty } from 'class-validator';
+import { IsUUID, IsNotEmpty } from 'class-validator';
 
 export class CreateBorrowDto {
   @IsUUID()
@@ -8,8 +8,4 @@ export class CreateBorrowDto {
   @IsUUID()
   @IsNotEmpty()
   bookId: string;
-
-  @IsDateString()
-  @IsNotEmpty()
-  dueDate: string;
 }

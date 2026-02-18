@@ -31,7 +31,7 @@ export class BorrowsService {
         data: {
           userId: dto.userId,
           bookId: dto.bookId,
-          dueDate: new Date(dto.dueDate),
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       });
     });
@@ -68,72 +68,72 @@ export class BorrowsService {
 
 
   async findAll() {
-  const borrows = await this.prisma.borrow.findMany({
-    include: {
-      user: true,
-      book: true,
-    },
-    orderBy: {
-      borrowedAt: 'desc',
-    },
-  });
+    const borrows = await this.prisma.borrow.findMany({
+      include: {
+        user: true,
+        book: true,
+      },
+      orderBy: {
+        borrowedAt: 'desc',
+      },
+    });
 
-  return borrows.map((bor) => ({
-    ...bor,
-    status: bor.returnedAt
-      ? 'RETURNED'
-      : new Date(bor.dueDate) < new Date()
-      ? 'OVERDUE'
-      : 'ACTIVE',
-  }));
-}
+    return borrows.map((bor) => ({
+      ...bor,
+      status: bor.returnedAt
+        ? 'RETURNED'
+        : new Date(bor.dueDate) < new Date()
+          ? 'OVERDUE'
+          : 'ACTIVE',
+    }));
+  }
 
 
 
   async findOne(id: string) {
-  const bor = await this.prisma.borrow.findUnique({
-    where: { id },
-    include: {
-      user: true,
-      book: true,
-    },
-  });
+    const bor = await this.prisma.borrow.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        book: true,
+      },
+    });
 
-  if (!bor) {
-    throw new NotFoundException('Borrow record not found');
+    if (!bor) {
+      throw new NotFoundException('Borrow record not found');
+    }
+
+    return {
+      ...bor,
+      status: bor.returnedAt
+        ? 'RETURNED'
+        : new Date(bor.dueDate) < new Date()
+          ? 'OVERDUE'
+          : 'ACTIVE',
+    };
   }
-
-  return {
-    ...bor,
-    status: bor.returnedAt
-      ? 'RETURNED'
-      : new Date(bor.dueDate) < new Date()
-      ? 'OVERDUE'
-      : 'ACTIVE',
-  };
-}
 
 
   async update(id: string, dto: UpdateBorrowDto) {
-  const borrow = await this.prisma.borrow.findUnique({
-    where: { id },
-  });
+    const borrow = await this.prisma.borrow.findUnique({
+      where: { id },
+    });
 
-  if (!borrow) {
-    throw new NotFoundException('Borrow record not found');
+    if (!borrow) {
+      throw new NotFoundException('Borrow record not found');
+    }
+
+    if (borrow.returnedAt) {
+      throw new BadRequestException('Cannot edit a returned borrow');
+    }
+
+    return this.prisma.borrow.update({
+      where: { id },
+      data: {
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+      },
+    });
   }
-
-  if (borrow.returnedAt) {
-    throw new BadRequestException('Cannot edit a returned borrow');
-  }
-
-  return this.prisma.borrow.update({
-    where: { id },
-    data: {
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-    },
-  });
-}
 
 
 

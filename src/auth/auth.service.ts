@@ -11,11 +11,11 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
-  
+
   async validateUser(dto: CreateAuthDto) {
-    const { email, password } = dto; 
+    const { email, password } = dto;
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
@@ -28,28 +28,29 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    
+
     const { password: _, ...safeUser } = user;
     return safeUser;
   }
 
-  
+
   async login(dto: CreateAuthDto) {
-    const user = await this.validateUser(dto);{
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
+    const user = await this.validateUser(dto); {
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+      };
 
-    return {
-      access_token: this.jwtService.sign(payload),
-      user,
-    };
+      return {
+        access_token: this.jwtService.sign(payload),
+        user,
+      };
+    }
   }
-}
 
- 
+
   async register(dto: CreateAuthDto) {
     return this.usersService.create(dto);
-    }
+  }
 }
