@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
   private transporter: nodemailer.Transporter;
+  private readonly logger = new Logger(EmailService.name);
 
   constructor() {
     // Using Gmail SMTP for demonstration
@@ -11,16 +12,30 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASSWORD || 'your-app-password',
+        user: process.env.EMAIL_USER || '',
+        pass: process.env.EMAIL_PASSWORD || '',
       },
     });
   }
 
   async sendOtp(email: string, otp: string, purpose: string): Promise<void> {
     try {
+      // If no credentials configured, just log OTP and skip email sending
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        this.logger.warn('Email credentials not configured. OTP will be logged to console.');
+        console.log(`
+          ========================================
+          OTP Email for ${purpose}
+          To: ${email}
+          OTP: ${otp}
+          Valid for: 10 minutes
+          ========================================
+        `);
+        return;
+      }
+
       const mailOptions = {
-        from: process.env.EMAIL_USER || 'your-email@gmail.com',
+        from: process.env.EMAIL_USER,
         to: email,
         subject: `Your OTP for ${purpose}`,
         html: `
@@ -45,11 +60,18 @@ export class EmailService {
       };
 
       await this.transporter.sendMail(mailOptions);
-      console.log(`OTP sent successfully to ${email}`);
+      this.logger.log(`OTP sent successfully to ${email}`);
     } catch (error) {
-      console.error(`Failed to send OTP email to ${email}:`, error);
-      // Log error but don't throw - allow OTP to be verified even if email fails in development
-      throw error;
+      this.logger.error(`Failed to send OTP email to ${email}:`, error);
+      // Log error but don't throw - allow OTP to be used even if email fails
+      console.log(`
+        ========================================
+        OTP Email FALLBACK (Email Send Failed)
+        To: ${email}
+        OTP: ${otp}
+        Valid for: 10 minutes
+        ========================================
+      `);
     }
   }
 }
