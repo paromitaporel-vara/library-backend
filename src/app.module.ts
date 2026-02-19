@@ -8,6 +8,7 @@ import { BooksModule } from './books/books.module';
 import { BorrowsModule } from './borrows/borrows.module';
 import { AuthModule } from './auth/auth.module';
 import { OtpModule } from './otp/otp.module';
+import { EmailModule } from './email/email.module';
 import { MulterModule } from '@nestjs/platform-express';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -20,6 +21,7 @@ import { join } from 'path';
     BorrowsModule,
     AuthModule,
     OtpModule,
+    EmailModule,
     MulterModule.register({
       dest: './uploads',
     }),

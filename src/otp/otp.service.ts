@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class OtpService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   generateOtp(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -52,8 +56,10 @@ export class OtpService {
   }
 
   async sendOtpEmail(email: string, otp: string, purpose: string): Promise<void> {
-    // In production, use a real email service like SendGrid, AWS SES, etc.
-    // For now, just log it
+    // Send OTP via email
+    await this.emailService.sendOtp(email, otp, purpose);
+    
+    // Also log it for debugging/testing
     console.log(`
       ========================================
       OTP Email for ${purpose}
@@ -62,13 +68,5 @@ export class OtpService {
       Valid for: 10 minutes
       ========================================
     `);
-    
-    // TODO: Implement actual email sending
-    // Example with nodemailer:
-    // await this.mailer.sendMail({
-    //   to: email,
-    //   subject: `Your OTP for ${purpose}`,
-    //   text: `Your OTP is: ${otp}. Valid for 10 minutes.`,
-    // });
   }
 }
