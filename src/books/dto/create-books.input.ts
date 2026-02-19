@@ -1,4 +1,4 @@
-import { IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsInt, Min } from 'class-validator';
 
 
 export class CreateBookDto {
@@ -8,4 +8,12 @@ title: string;
 
 @IsNotEmpty()
 author: string;
+
+@IsOptional()
+publisher?: string;
+
+@IsOptional()
+@IsInt()
+@Min(1)
+copies?: number;
 }

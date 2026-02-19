@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "Book" ADD COLUMN     "copies" INTEGER NOT NULL DEFAULT 1,
+ADD COLUMN     "publisher" TEXT;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "fine" DOUBLE PRECISION NOT NULL DEFAULT 0;

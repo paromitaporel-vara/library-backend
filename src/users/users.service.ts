@@ -95,4 +95,55 @@ export class UsersService {
     const { password: _, ...result } = user;
     return result;
   }
+
+  async search(query: string) {
+    if (!query) {
+      return this.findAll();
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        borrows: true,
+      },
+    });
+
+    return users.map(({ password, ...user }) => user);
+  }
+
+  async updatePassword(email: string, hashedPassword: string) {
+    return this.prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
+  }
+
+  async updateProfile(id: string, name?: string, profilePhoto?: string) {
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (profilePhoto !== undefined) updateData.profilePhoto = profilePhoto;
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+    });
+
+    const { password: _, ...result } = user;
+    return result;
+  }
+
+  async updateEmail(oldEmail: string, newEmail: string) {
+    const user = await this.prisma.user.update({
+      where: { email: oldEmail },
+      data: { email: newEmail },
+    });
+
+    const { password: _, ...result } = user;
+    return result;
+  }
 }

@@ -8,18 +8,32 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String?
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  borrows   Borrow[]
+  id           String   @id @default(uuid())
+  name         String?
+  email        String   @unique
+  createdAt    DateTime @default(now())
+  password     String
+  role         Role     @default(USER)
+  fine         Float    @default(0)
+  profilePhoto String?
+  borrows      Borrow[]
 }
 
-enum Role {
-  USER
-  ADMIN
+model Otp {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  type      OtpType
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+}
+
+enum OtpType {
+  EMAIL_CHANGE
+  PASSWORD_RESET
+  PASSWORD_CHANGE
 }
 
 model Book {
@@ -27,6 +41,8 @@ model Book {
   title       String
   author      String
   isAvailable Boolean  @default(true)
+  copies      Int      @default(1)
+  publisher   String?
   borrows     Borrow[]
 }
 
@@ -39,4 +55,9 @@ model Borrow {
   returnedAt DateTime?
   book       Book      @relation(fields: [bookId], references: [id])
   user       User      @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
 }

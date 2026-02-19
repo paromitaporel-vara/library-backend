@@ -17,12 +17,13 @@ export class BooksService {
       data: {
         title: dto.title,
         author: dto.author,
+        publisher: dto.publisher,
+        copies: dto.copies || 1,
         isAvailable: true,
       },
     });
   }
 
-  
   findAll() {
     return this.prisma.book.findMany({
       include: {
@@ -80,5 +81,26 @@ export class BooksService {
     where: { id },
   });
 }
+
+  async search(query: string) {
+    if (!query) {
+      return this.findAll();
+    }
+
+    return this.prisma.book.findMany({
+      where: {
+        OR: [
+          { title: { contains: query, mode: 'insensitive' } },
+          { author: { contains: query, mode: 'insensitive' } },
+          { publisher: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        borrows: {
+          where: { returnedAt: null },
+        },
+      },
+    });
+  }
 
 }
