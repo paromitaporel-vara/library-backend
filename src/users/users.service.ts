@@ -88,6 +88,23 @@ export class UsersService {
   async remove(id: string) {
     await this.findOne(id);
 
+    // Check for active borrows (unreturned books)
+    const activeBorrows = await this.prisma.borrow.findMany({
+      where: { 
+        userId: id,
+        returnedAt: null,
+      },
+    });
+
+    if (activeBorrows.length > 0) {
+      throw new ConflictException('Cannot delete user with active borrows');
+    }
+
+    // Delete returned borrows first
+    await this.prisma.borrow.deleteMany({
+      where: { userId: id },
+    });
+
     const user = await this.prisma.user.delete({
       where: { id },
     });

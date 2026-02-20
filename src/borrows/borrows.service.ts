@@ -138,6 +138,39 @@ export class BorrowsService {
     }));
   }
 
+  async search(query: string, sortOrder?: string) {
+    if (!query) {
+      return this.findAll(sortOrder);
+    }
+
+    const borrows = await this.prisma.borrow.findMany({
+      where: {
+        OR: [
+          { book: { title: { contains: query, mode: 'insensitive' } } },
+          { book: { author: { contains: query, mode: 'insensitive' } } },
+          { user: { name: { contains: query, mode: 'insensitive' } } },
+          { user: { email: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
+      include: {
+        user: true,
+        book: true,
+      },
+      orderBy: {
+        borrowedAt: sortOrder === 'asc' ? 'asc' : 'desc',
+      },
+    });
+
+    return borrows.map((bor) => ({
+      ...bor,
+      status: bor.returnedAt
+        ? 'RETURNED'
+        : new Date(bor.dueDate) < new Date()
+          ? 'OVERDUE'
+          : 'ACTIVE',
+    }));
+  }
+
 
 
   async findOne(id: string) {

@@ -47,10 +47,16 @@ export class UsersController {
 
   @Post('profile/send-email-change-otp')
   @UseGuards(JwtAuthGuard)
-  async sendEmailChangeOtp(@Request() req: any) {
-    const otp = await this.otpService.createOtp(req.user.email, 'EMAIL_CHANGE');
-    await this.otpService.sendOtpEmail(req.user.email, otp, 'Email Change');
-    return { message: 'OTP sent to current email' };
+  async sendEmailChangeOtp(
+    @Request() req: any,
+    @Body() body: { newEmail: string },
+  ) {
+    if (!body.newEmail) {
+      throw new BadRequestException('New email is required');
+    }
+    const otp = await this.otpService.createOtp(body.newEmail, 'EMAIL_CHANGE');
+    await this.otpService.sendOtpEmail(body.newEmail, otp, 'Email Change');
+    return { message: 'OTP sent to new email' };
   }
 
   @Post('profile/change-email')
@@ -59,8 +65,13 @@ export class UsersController {
     @Request() req: any,
     @Body() body: { otp: string; newEmail: string },
   ) {
-    const isValid = await this.otpService.verifyOtp(req.user.email, body.otp, 'EMAIL_CHANGE');
-    if (!isValid) {
+    // Verify OTP against the new email (not the current email)
+    const response = await fetch(`${process.env.INTERNAL_API_URL || 'http://localhost:3000'}/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: body.newEmail, otp: body.otp, purpose: 'EMAIL_CHANGE' }),
+    });
+    if (!response.ok) {
       throw new BadRequestException('Invalid or expired OTP');
     }
 

@@ -13,6 +13,11 @@ export class BorrowsController {
 constructor(private readonly borrowsService: BorrowsService) {}
 
 
+@Get('search')
+  search(@Query('q') query: string, @Query('sortOrder') sortOrder?: string) {
+    return this.borrowsService.search(query, sortOrder);
+  }
+
 @Get()
   findAll(@Query('sortOrder') sortOrder?: string) {
     return this.borrowsService.findAll(sortOrder);

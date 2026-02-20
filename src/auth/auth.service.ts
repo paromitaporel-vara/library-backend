@@ -69,8 +69,13 @@ export class AuthService {
   }
 
   async resetPassword(email: string, otp: string, newPassword: string) {
-    const isValid = await this.otpService.verifyOtp(email, otp, 'PASSWORD_RESET');
-    if (!isValid) {
+    // Use new OTP verification API endpoint
+    const response = await fetch(`${process.env.INTERNAL_API_URL || 'http://localhost:3000'}/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, purpose: 'PASSWORD_RESET' }),
+    });
+    if (!response.ok) {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
 
@@ -97,9 +102,13 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-
-    const isValid = await this.otpService.verifyOtp(email, otp, 'PASSWORD_CHANGE');
-    if (!isValid) {
+    // Use new OTP verification API endpoint
+    const response = await fetch(`${process.env.INTERNAL_API_URL || 'http://localhost:3000'}/otp/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp, purpose: 'PASSWORD_CHANGE' }),
+    });
+    if (!response.ok) {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
 
