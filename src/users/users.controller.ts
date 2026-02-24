@@ -20,14 +20,19 @@ export class UsersController {
     return this.usersService.create(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Get('search-for-borrow')
+  searchForBorrow(@Query('q') query: string) {
+    return this.usersService.searchForBorrow(query);
   }
 
   @Get('search')
   search(@Query('q') query: string) {
     return this.usersService.search(query);
+  }
+
+  @Get()
+  findAll() {
+    return this.usersService.findAll();
   }
 
   @Get(':id')

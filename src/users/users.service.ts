@@ -133,6 +133,26 @@ export class UsersService {
     return users.map(({ password, ...user }) => user);
   }
 
+  async searchForBorrow(query: string) {
+    if (!query) {
+      return this.findAll();
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      include: {
+        borrows: true,
+      },
+    });
+
+    return users.map(({ password, ...user }) => user);
+  }
+
   async updatePassword(email: string, hashedPassword: string) {
     return this.prisma.user.update({
       where: { email },

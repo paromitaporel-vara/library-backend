@@ -12,14 +12,41 @@ export class BooksController {
     return this.booksService.create(dto);
   }
 
-  @Get()
-  findAll() {
-    return this.booksService.findAll();
+  @Get('search-titles')
+  searchTitles(
+    @Query('q') query: string,
+    @Query('author') author?: string,
+    @Query('publisher') publisher?: string,
+  ) {
+    return this.booksService.searchTitles(query, author, publisher);
+  }
+
+  @Get('search-authors')
+  searchAuthors(
+    @Query('q') query: string,
+    @Query('title') title?: string,
+    @Query('publisher') publisher?: string,
+  ) {
+    return this.booksService.searchAuthors(query, title, publisher);
+  }
+
+  @Get('search-publishers')
+  searchPublishers(
+    @Query('q') query: string,
+    @Query('title') title?: string,
+    @Query('author') author?: string,
+  ) {
+    return this.booksService.searchPublishers(query, title, author);
   }
 
   @Get('search')
   search(@Query('q') query: string) {
     return this.booksService.search(query);
+  }
+
+  @Get()
+  findAll() {
+    return this.booksService.findAll();
   }
 
   @Get(':id')

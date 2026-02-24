@@ -2,17 +2,62 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBorrowDto } from './dto/create-borrows.input';
+import { CreateBorrowByDetailsDto } from './dto/create-borrow-by-details.input';
 import { UpdateBorrowDto } from './dto/update-borrows.input';
 
 @Injectable()
 export class BorrowsService {
   constructor(private prisma: PrismaService) { }
 
+  private async getAvailableCopies(bookId: string): Promise<number> {
+    const book = await this.prisma.book.findUnique({
+      where: { id: bookId },
+      include: {
+        borrows: {
+          where: { returnedAt: null },
+        },
+      },
+    });
 
-  async borrowBook(dto: CreateBorrowDto) {
+    if (!book) return 0;
+    return book.copies - book.borrows.length;
+  }
+
+  private calculateStatus(borrow: any): string {
+    if (borrow.returnedAt) {
+      return 'RETURNED';
+    }
+    return new Date(borrow.dueDate) < new Date() ? 'OVERDUE' : 'ACTIVE';
+  }
+
+  private async enrichBorrowResponse(borrow: any) {
+    const availableCopies = await this.getAvailableCopies(borrow.bookId);
+    return {
+      ...borrow,
+      status: this.calculateStatus(borrow),
+      book: borrow.book
+        ? {
+            ...borrow.book,
+            availableCopies,
+            isAvailable: availableCopies > 0,
+          }
+        : undefined,
+    };
+  }
+
+  private async enrichBorrowsResponse(borrows: any[]) {
+    return Promise.all(borrows.map((b) => this.enrichBorrowResponse(b)));
+  }
+
+  async borrowBook(dto: CreateBorrowDto, userRole: string, userId: string) {
+    if (userRole !== 'ADMIN' && userId !== dto.userId) {
+      throw new ForbiddenException('You can only borrow books for yourself');
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const book = await tx.book.findUnique({
         where: { id: dto.bookId },
@@ -38,16 +83,74 @@ export class BorrowsService {
         data: { isAvailable },
       });
 
-      return tx.borrow.create({
+      const borrow = await tx.borrow.create({
         data: {
           userId: dto.userId,
           bookId: dto.bookId,
           dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
+        include: {
+          book: true,
+          user: true,
+        },
       });
+
+      return this.enrichBorrowResponse(borrow);
     });
   }
 
+  async borrowBookByDetails(dto: CreateBorrowByDetailsDto, userRole: string, userId: string) {
+    const targetUserId = userRole !== 'ADMIN' ? userId : (dto.userId || userId);
+
+    
+    if (userRole !== 'ADMIN' && userId !== targetUserId) {
+      throw new ForbiddenException('You can only borrow books for yourself');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const book = await tx.book.findFirst({
+        where: {
+          title: dto.bookTitle,
+          author: dto.bookAuthor,
+          publisher: dto.bookPublisher,
+        },
+        include: {
+          borrows: {
+            where: { returnedAt: null },
+          },
+        },
+      });
+
+      if (!book) {
+        throw new BadRequestException('Book not found');
+      }
+
+      const activeBorrows = book.borrows.length;
+      if (activeBorrows >= book.copies) {
+        throw new BadRequestException('No copies available for this book');
+      }
+
+      const isAvailable = activeBorrows + 1 < book.copies;
+      await tx.book.update({
+        where: { id: book.id },
+        data: { isAvailable },
+      });
+
+      const borrow = await tx.borrow.create({
+        data: {
+          userId: targetUserId,
+          bookId: book.id,
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+        include: {
+          book: true,
+          user: true,
+        },
+      });
+
+      return this.enrichBorrowResponse(borrow);
+    });
+  }
 
   async returnBook(borrowId: string) {
     return this.prisma.$transaction(async (tx) => {
@@ -64,7 +167,7 @@ export class BorrowsService {
         throw new BadRequestException('Book already returned');
       }
 
-      // Calculate fine
+      
       const returnDate = new Date();
       const dueDate = new Date(borrow.dueDate);
       let fine = 0;
@@ -80,14 +183,17 @@ export class BorrowsService {
           fine = 7 * 5 + (daysLate - 7) * 15;
         }
 
-        // Update user's fine
         await tx.user.update({
           where: { id: borrow.userId },
           data: { fine: { increment: fine } },
         });
       }
 
-      // Check if book should be marked as available
+        await tx.borrow.update({
+          where: { id: borrowId },
+          data: { returnedAt: new Date() },
+        });
+
       const book = await tx.book.findUnique({
         where: { id: borrow.bookId },
         include: {
@@ -107,15 +213,14 @@ export class BorrowsService {
         });
       }
 
-      return tx.borrow.update({
+      const updatedBorrow = await tx.borrow.findUnique({
         where: { id: borrowId },
-        data: {
-          returnedAt: new Date(),
-        },
+        include: { book: true, user: true },
       });
+
+      return this.enrichBorrowResponse(updatedBorrow);
     });
   }
-
 
   async findAll(sortOrder?: string) {
     const borrows = await this.prisma.borrow.findMany({
@@ -128,14 +233,7 @@ export class BorrowsService {
       },
     });
 
-    return borrows.map((bor) => ({
-      ...bor,
-      status: bor.returnedAt
-        ? 'RETURNED'
-        : new Date(bor.dueDate) < new Date()
-          ? 'OVERDUE'
-          : 'ACTIVE',
-    }));
+    return this.enrichBorrowsResponse(borrows);
   }
 
   async search(query: string, sortOrder?: string) {
@@ -161,18 +259,10 @@ export class BorrowsService {
       },
     });
 
-    return borrows.map((bor) => ({
-      ...bor,
-      status: bor.returnedAt
-        ? 'RETURNED'
-        : new Date(bor.dueDate) < new Date()
-          ? 'OVERDUE'
-          : 'ACTIVE',
-    }));
+    return this.enrichBorrowsResponse(borrows);
   }
 
-
-
+  
   async findOne(id: string) {
     const bor = await this.prisma.borrow.findUnique({
       where: { id },
@@ -186,16 +276,8 @@ export class BorrowsService {
       throw new NotFoundException('Borrow record not found');
     }
 
-    return {
-      ...bor,
-      status: bor.returnedAt
-        ? 'RETURNED'
-        : new Date(bor.dueDate) < new Date()
-          ? 'OVERDUE'
-          : 'ACTIVE',
-    };
+    return this.enrichBorrowResponse(bor);
   }
-
 
   async update(id: string, dto: UpdateBorrowDto) {
     const borrow = await this.prisma.borrow.findUnique({
@@ -210,19 +292,32 @@ export class BorrowsService {
       throw new BadRequestException('Cannot edit a returned borrow');
     }
 
-    return this.prisma.borrow.update({
+    const updated = await this.prisma.borrow.update({
       where: { id },
       data: {
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       },
+      include: {
+        book: true,
+        user: true,
+      },
     });
+
+    return this.enrichBorrowResponse(updated);
   }
-
-
 
   async remove(id: string) {
     return this.prisma.$transaction(async (tx) => {
-      const borrow = await this.findOne(id);
+      const borrow = await tx.borrow.findUnique({
+        where: { id },
+        include: {
+          book: true,
+        },
+      });
+
+      if (!borrow) {
+        throw new NotFoundException('Borrow record not found');
+      }
 
       if (!borrow.returnedAt) {
         await tx.book.update({
