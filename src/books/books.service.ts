@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookDto } from './dto/create-books.input';
 import { UpdateBookDto } from './dto/update-books.input';
+import { PaginatedResponse } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class BooksService {
@@ -43,15 +44,29 @@ export class BooksService {
     }).then(book => this.enrichBookResponse(book));
   }
 
-  async findAll() {
-    const books = await this.prisma.book.findMany({
-      include: {
-        borrows: {
-          where: { returnedAt: null },
+  async findAll(page = 1, limit = 10): Promise<PaginatedResponse<any>> {
+    const skip = (page - 1) * limit;
+    const [books, total] = await Promise.all([
+      this.prisma.book.findMany({
+        skip,
+        take: limit,
+        include: {
+          borrows: {
+            where: { returnedAt: null },
+          },
         },
+      }),
+      this.prisma.book.count(),
+    ]);
+    return {
+      data: this.enrichBooksResponse(books),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-    });
-    return this.enrichBooksResponse(books);
+    };
   }
 
   async findOne(id: string) {
@@ -105,27 +120,43 @@ export class BooksService {
     });
   }
 
-  async search(query: string) {
+  async search(query: string, page = 1, limit = 10): Promise<PaginatedResponse<any>> {
     if (!query) {
-      return this.findAll();
+      return this.findAll(page, limit);
     }
 
-    const books = await this.prisma.book.findMany({
-      where: {
-        OR: [
-          { title: { contains: query, mode: 'insensitive' } },
-          { author: { contains: query, mode: 'insensitive' } },
-          { publisher: { contains: query, mode: 'insensitive' } },
-        ],
-      },
-      include: {
-        borrows: {
-          where: { returnedAt: null },
-        },
-      },
-    });
+    const where = {
+      OR: [
+        { title: { contains: query, mode: 'insensitive' as const } },
+        { author: { contains: query, mode: 'insensitive' as const } },
+        { publisher: { contains: query, mode: 'insensitive' as const } },
+      ],
+    };
 
-    return this.enrichBooksResponse(books);
+    const skip = (page - 1) * limit;
+    const [books, total] = await Promise.all([
+      this.prisma.book.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          borrows: {
+            where: { returnedAt: null },
+          },
+        },
+      }),
+      this.prisma.book.count({ where }),
+    ]);
+
+    return {
+      data: this.enrichBooksResponse(books),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async searchTitles(query: string, author?: string, publisher?: string) {

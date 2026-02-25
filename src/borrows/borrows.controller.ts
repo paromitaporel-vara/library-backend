@@ -14,13 +14,13 @@ export class BorrowsController {
 constructor(private readonly borrowsService: BorrowsService) {}
 
 @Get('search')
-  search(@Query('q') query: string, @Query('sortOrder') sortOrder?: string) {
-    return this.borrowsService.search(query, sortOrder);
+  search(@Query('q') query: string, @Query('sortOrder') sortOrder?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.borrowsService.search(query, sortOrder, page ? +page : 1, limit ? +limit : 10);
   }
 
 @Get()
-  findAll(@Query('sortOrder') sortOrder?: string) {
-    return this.borrowsService.findAll(sortOrder);
+  findAll(@Query('sortOrder') sortOrder?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.borrowsService.findAll(sortOrder, page ? +page : 1, limit ? +limit : 10);
   }
 
 @Get(':id')

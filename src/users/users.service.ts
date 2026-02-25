@@ -2,6 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-users.input';
 import { UpdateUserDto } from './dto/update-users.input';
+import { PaginatedResponse } from '../common/dto/pagination-query.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -32,14 +33,28 @@ export class UsersService {
     return result;
   }
 
-  async findAll() {
-    const users = await this.prisma.user.findMany({
-      include: {
-        borrows: true,
-      },
-    });
+  async findAll(page = 1, limit = 10): Promise<PaginatedResponse<any>> {
+    const skip = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        include: {
+          borrows: true,
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
 
-    return users.map(({ password, ...user }) => user);
+    return {
+      data: users.map(({ password, ...user }) => user),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -113,38 +128,54 @@ export class UsersService {
     return result;
   }
 
-  async search(query: string) {
+  async search(query: string, page = 1, limit = 10): Promise<PaginatedResponse<any>> {
     if (!query) {
-      return this.findAll();
+      return this.findAll(page, limit);
     }
 
-    const users = await this.prisma.user.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
-      },
-      include: {
-        borrows: true,
-      },
-    });
+    const where = {
+      OR: [
+        { name: { contains: query, mode: 'insensitive' as const } },
+        { email: { contains: query, mode: 'insensitive' as const } },
+      ],
+    };
 
-    return users.map(({ password, ...user }) => user);
+    const skip = (page - 1) * limit;
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          borrows: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users.map(({ password, ...user }) => user),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async searchForBorrow(query: string) {
-    if (!query) {
-      return this.findAll();
-    }
+    const where = query
+      ? {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' as const } },
+            { email: { contains: query, mode: 'insensitive' as const } },
+          ],
+        }
+      : undefined;
 
     const users = await this.prisma.user.findMany({
-      where: {
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
-      },
+      where,
       include: {
         borrows: true,
       },

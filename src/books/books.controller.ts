@@ -40,13 +40,13 @@ export class BooksController {
   }
 
   @Get('search')
-  search(@Query('q') query: string) {
-    return this.booksService.search(query);
+  search(@Query('q') query: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.booksService.search(query, page ? +page : 1, limit ? +limit : 10);
   }
 
   @Get()
-  findAll() {
-    return this.booksService.findAll();
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.booksService.findAll(page ? +page : 1, limit ? +limit : 10);
   }
 
   @Get(':id')

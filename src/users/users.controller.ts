@@ -26,13 +26,13 @@ export class UsersController {
   }
 
   @Get('search')
-  search(@Query('q') query: string) {
-    return this.usersService.search(query);
+  search(@Query('q') query: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.usersService.search(query, page ? +page : 1, limit ? +limit : 10);
   }
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.usersService.findAll(page ? +page : 1, limit ? +limit : 10);
   }
 
   @Get(':id')

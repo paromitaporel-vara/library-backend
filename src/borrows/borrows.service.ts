@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBorrowDto } from './dto/create-borrows.input';
 import { CreateBorrowByDetailsDto } from './dto/create-borrow-by-details.input';
 import { UpdateBorrowDto } from './dto/update-borrows.input';
+import { PaginatedResponse } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class BorrowsService {
@@ -222,44 +223,74 @@ export class BorrowsService {
     });
   }
 
-  async findAll(sortOrder?: string) {
-    const borrows = await this.prisma.borrow.findMany({
-      include: {
-        user: true,
-        book: true,
-      },
-      orderBy: {
-        borrowedAt: sortOrder === 'asc' ? 'asc' : 'desc',
-      },
-    });
+  async findAll(sortOrder?: string, page = 1, limit = 10): Promise<PaginatedResponse<any>> {
+    const skip = (page - 1) * limit;
+    const [borrows, total] = await Promise.all([
+      this.prisma.borrow.findMany({
+        skip,
+        take: limit,
+        include: {
+          user: true,
+          book: true,
+        },
+        orderBy: {
+          borrowedAt: sortOrder === 'asc' ? 'asc' : 'desc',
+        },
+      }),
+      this.prisma.borrow.count(),
+    ]);
 
-    return this.enrichBorrowsResponse(borrows);
+    return {
+      data: await this.enrichBorrowsResponse(borrows),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  async search(query: string, sortOrder?: string) {
+  async search(query: string, sortOrder?: string, page = 1, limit = 10): Promise<PaginatedResponse<any>> {
     if (!query) {
-      return this.findAll(sortOrder);
+      return this.findAll(sortOrder, page, limit);
     }
 
-    const borrows = await this.prisma.borrow.findMany({
-      where: {
-        OR: [
-          { book: { title: { contains: query, mode: 'insensitive' } } },
-          { book: { author: { contains: query, mode: 'insensitive' } } },
-          { user: { name: { contains: query, mode: 'insensitive' } } },
-          { user: { email: { contains: query, mode: 'insensitive' } } },
-        ],
-      },
-      include: {
-        user: true,
-        book: true,
-      },
-      orderBy: {
-        borrowedAt: sortOrder === 'asc' ? 'asc' : 'desc',
-      },
-    });
+    const where = {
+      OR: [
+        { book: { title: { contains: query, mode: 'insensitive' as const } } },
+        { book: { author: { contains: query, mode: 'insensitive' as const } } },
+        { user: { name: { contains: query, mode: 'insensitive' as const } } },
+        { user: { email: { contains: query, mode: 'insensitive' as const } } },
+      ],
+    };
 
-    return this.enrichBorrowsResponse(borrows);
+    const skip = (page - 1) * limit;
+    const [borrows, total] = await Promise.all([
+      this.prisma.borrow.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          user: true,
+          book: true,
+        },
+        orderBy: {
+          borrowedAt: sortOrder === 'asc' ? 'asc' : 'desc',
+        },
+      }),
+      this.prisma.borrow.count({ where }),
+    ]);
+
+    return {
+      data: await this.enrichBorrowsResponse(borrows),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   

@@ -17,7 +17,7 @@ export class OtpService {
     const otp = this.generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Delete old OTPs for this email and type
+  
     await this.prisma.otp.deleteMany({
       where: { email, type: type as any },
     });
@@ -45,7 +45,6 @@ export class OtpService {
     });
 
     if (otpRecord) {
-      // Delete used OTP
       await this.prisma.otp.delete({
         where: { id: otpRecord.id },
       });
@@ -56,10 +55,9 @@ export class OtpService {
   }
 
   async sendOtpEmail(email: string, otp: string, purpose: string): Promise<void> {
-    // Send OTP via email
     await this.emailService.sendOtp(email, otp, purpose);
     
-    // Also log it for debugging/testing
+    
     console.log(`
       ========================================
       OTP Email for ${purpose}
