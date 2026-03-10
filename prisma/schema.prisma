@@ -17,6 +17,8 @@ model User {
   fine         Float    @default(0)
   profilePhoto String?
   borrows      Borrow[]
+
+  @@index([email, name])
 }
 
 model Otp {
@@ -26,8 +28,6 @@ model Otp {
   type      OtpType
   expiresAt DateTime
   createdAt DateTime @default(now())
-
-  @@index([email, type])
 }
 
 enum OtpType {
@@ -44,6 +44,8 @@ model Book {
   copies      Int      @default(1)
   publisher   String?
   borrows     Borrow[]
+
+  @@index([title,author])
 }
 
 model Borrow {

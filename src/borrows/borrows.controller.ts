@@ -58,5 +58,4 @@ update(
   remove(@Param('id') id: string) {
     return this.borrowsService.remove(id);
 }
-
 }

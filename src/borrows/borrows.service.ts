@@ -35,17 +35,37 @@ export class BorrowsService {
     return new Date(borrow.dueDate) < new Date() ? 'OVERDUE' : 'ACTIVE';
   }
 
+  private calculateFine(borrow: any): number {
+    const referenceDate = borrow.returnedAt
+      ? new Date(borrow.returnedAt)
+      : new Date();
+
+    const dueDate = new Date(borrow.dueDate);
+
+    if (referenceDate <= dueDate) return 0;
+
+    const daysLate = Math.ceil(
+      (referenceDate.getTime() - dueDate.getTime()) /
+      (1000 * 60 * 60 * 24),
+    );
+
+    if (daysLate <= 7) return daysLate * 5;
+
+    return 7 * 5 + (daysLate - 7) * 15;
+  }
+
   private async enrichBorrowResponse(borrow: any) {
     const availableCopies = await this.getAvailableCopies(borrow.bookId);
     return {
       ...borrow,
       status: this.calculateStatus(borrow),
+      liveFine: this.calculateFine(borrow),
       book: borrow.book
         ? {
-            ...borrow.book,
-            availableCopies,
-            isAvailable: availableCopies > 0,
-          }
+          ...borrow.book,
+          availableCopies,
+          isAvailable: availableCopies > 0,
+        }
         : undefined,
     };
   }
@@ -103,7 +123,7 @@ export class BorrowsService {
   async borrowBookByDetails(dto: CreateBorrowByDetailsDto, userRole: string, userId: string) {
     const targetUserId = userRole !== 'ADMIN' ? userId : (dto.userId || userId);
 
-    
+
     if (userRole !== 'ADMIN' && userId !== targetUserId) {
       throw new ForbiddenException('You can only borrow books for yourself');
     }
@@ -168,32 +188,21 @@ export class BorrowsService {
         throw new BadRequestException('Book already returned');
       }
 
-      
-      const returnDate = new Date();
-      const dueDate = new Date(borrow.dueDate);
-      let fine = 0;
+      const returnedAt = new Date();
 
-      if (returnDate > dueDate) {
-        const daysLate = Math.ceil(
-          (returnDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24),
-        );
+      await tx.borrow.update({
+        where: { id: borrowId },
+        data: { returnedAt },
+      });
 
-        if (daysLate <= 7) {
-          fine = daysLate * 5;
-        } else {
-          fine = 7 * 5 + (daysLate - 7) * 15;
-        }
-
+      // Calculate and persist the fine to the user's record
+      const fine = this.calculateFine({ ...borrow, returnedAt });
+      if (fine > 0) {
         await tx.user.update({
           where: { id: borrow.userId },
           data: { fine: { increment: fine } },
         });
       }
-
-        await tx.borrow.update({
-          where: { id: borrowId },
-          data: { returnedAt: new Date() },
-        });
 
       const book = await tx.book.findUnique({
         where: { id: borrow.bookId },
@@ -293,7 +302,7 @@ export class BorrowsService {
     };
   }
 
-  
+
   async findOne(id: string) {
     const bor = await this.prisma.borrow.findUnique({
       where: { id },

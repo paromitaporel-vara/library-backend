@@ -7,7 +7,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(dto: CreateUserDto) {
     const existingUser = await this.prisma.user.findUnique({
@@ -33,6 +33,15 @@ export class UsersService {
     return result;
   }
 
+  private enrichUserWithFine(user: any) {
+    const { password, ...rest } = user;
+    const totalFine = (rest.borrows || []).reduce(
+      (sum: number, borrow: any) => sum + this.calculateFine(borrow),
+      0,
+    );
+    return { ...rest, fine: totalFine };
+  }
+
   async findAll(page = 1, limit = 10): Promise<PaginatedResponse<any>> {
     const skip = (page - 1) * limit;
     const [users, total] = await Promise.all([
@@ -47,7 +56,7 @@ export class UsersService {
     ]);
 
     return {
-      data: users.map(({ password, ...user }) => user),
+      data: users.map((user) => this.enrichUserWithFine(user)),
       meta: {
         total,
         page,
@@ -55,6 +64,32 @@ export class UsersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  private calculateFine(borrow: any): number {
+    const referenceDate = borrow.returnedAt
+      ? new Date(borrow.returnedAt)
+      : new Date();
+
+    const dueDate = new Date(borrow.dueDate);
+
+    if (referenceDate <= dueDate) return 0;
+
+    const daysLate = Math.ceil(
+      (referenceDate.getTime() - dueDate.getTime()) /
+      (1000 * 60 * 60 * 24),
+    );
+
+    if (daysLate <= 7) return daysLate * 5;
+
+    return 7 * 5 + (daysLate - 7) * 15;
+  }
+
+  private calculateStatus(borrow: any): string {
+    if (borrow.returnedAt) {
+      return 'RETURNED';
+    }
+    return new Date(borrow.dueDate) < new Date() ? 'OVERDUE' : 'ACTIVE';
   }
 
   async findOne(id: string) {
@@ -74,7 +109,19 @@ export class UsersService {
     }
 
     const { password: _, ...result } = user;
-    return result;
+
+    const enrichedBorrows = result.borrows.map((borrow: any) => ({
+      ...borrow,
+      liveFine: this.calculateFine(borrow),
+      status: this.calculateStatus(borrow),
+    }));
+
+    const totalFine = enrichedBorrows.reduce(
+      (sum: number, b: any) => sum + (b.liveFine || 0),
+      0,
+    );
+
+    return { ...result, borrows: enrichedBorrows, totalFine };
   }
 
   async findByEmail(email: string) {
@@ -105,7 +152,7 @@ export class UsersService {
 
     // Check for active borrows (unreturned books)
     const activeBorrows = await this.prisma.borrow.findMany({
-      where: { 
+      where: {
         userId: id,
         returnedAt: null,
       },
@@ -154,7 +201,7 @@ export class UsersService {
     ]);
 
     return {
-      data: users.map(({ password, ...user }) => user),
+      data: users.map((user) => this.enrichUserWithFine(user)),
       meta: {
         total,
         page,
@@ -167,11 +214,11 @@ export class UsersService {
   async searchForBorrow(query: string) {
     const where = query
       ? {
-          OR: [
-            { name: { contains: query, mode: 'insensitive' as const } },
-            { email: { contains: query, mode: 'insensitive' as const } },
-          ],
-        }
+        OR: [
+          { name: { contains: query, mode: 'insensitive' as const } },
+          { email: { contains: query, mode: 'insensitive' as const } },
+        ],
+      }
       : undefined;
 
     const users = await this.prisma.user.findMany({
@@ -181,7 +228,7 @@ export class UsersService {
       },
     });
 
-    return users.map(({ password, ...user }) => user);
+    return users.map((user) => this.enrichUserWithFine(user));
   }
 
   async updatePassword(email: string, hashedPassword: string) {

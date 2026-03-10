@@ -102,6 +102,46 @@ export class BooksService {
     return this.enrichBookResponse(updated);
   }
 
+  async updateCopies(id: string, change: number) {
+    const book = await this.prisma.book.findUnique({
+      where: { id },
+      include: {
+        borrows: {
+          where: { returnedAt: null },
+        },
+      },
+    });
+
+    if (!book) {
+      throw new NotFoundException('Book not found');
+    }
+
+    const newCopies = book.copies + change;
+    const activeBorrows = book.borrows?.length || 0;
+
+    if (newCopies < 1) {
+      throw new BadRequestException('Copies cannot be less than 1');
+    }
+
+    if (newCopies < activeBorrows) {
+      throw new BadRequestException(
+        `Cannot reduce copies below ${activeBorrows}. There are ${activeBorrows} active borrow(s).`,
+      );
+    }
+
+    const updated = await this.prisma.book.update({
+      where: { id },
+      data: { copies: newCopies },
+      include: {
+        borrows: {
+          where: { returnedAt: null },
+        },
+      },
+    });
+
+    return this.enrichBookResponse(updated);
+  }
+
   async remove(id: string) {
     await this.findOne(id);
 

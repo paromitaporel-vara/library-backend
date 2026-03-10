@@ -1,7 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-books.input';
 import { UpdateBookDto } from './dto/update-books.input';
+import { UpdateCopiesDto } from './dto/update-copies.input';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @Controller('books')
 export class BooksController {
@@ -52,6 +56,13 @@ export class BooksController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.booksService.findOne(id);
+  }
+
+  @Patch(':id/copies')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  updateCopies(@Param('id') id: string, @Body() dto: UpdateCopiesDto) {
+    return this.booksService.updateCopies(id, dto.change);
   }
 
   @Patch(':id')
